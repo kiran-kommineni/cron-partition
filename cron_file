@@ -1,0 +1,87 @@
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    data TEXT,
+    created_at TIMESTAMP NOT NULL
+) PARTITION BY RANGE (created_at);
+
+
+CREATE OR REPLACE FUNCTION create_next_month_partition() RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+    next_month DATE;
+    partition_name TEXT;
+    start_date DATE;
+    end_date DATE;
+BEGIN
+    -- Calculate the next month and its start and end dates
+    next_month := date_trunc('month', now() + interval '1 month');
+    start_date := next_month;
+    end_date := next_month + interval '1 month' - interval '1 second';
+    
+    -- Generate the partition table name
+    partition_name := 'my_table_' || to_char(next_month, 'YYYYMM');
+    
+    -- Execute the SQL to create the new partition
+    EXECUTE format('
+        CREATE TABLE %I PARTITION OF my_table
+        FOR VALUES FROM (%L) TO (%L)
+    ', partition_name, start_date, end_date);
+    
+    RAISE NOTICE 'Partition % created for date range % to %', partition_name, start_date, end_date;
+END;
+$$;
+
+
+CREATE EXTENSION pg_cron;
+
+SELECT cron.schedule(
+    'Create Monthly Partition',   -- job name
+    '0 0 1 * *',                  -- cron timing (midnight on the first of every month)
+    'CALL create_next_month_partition()'  -- function to call
+);
+
+
+
+-- Step 1: Create the base table with partitioning
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    data TEXT,
+    created_at TIMESTAMP NOT NULL
+) PARTITION BY RANGE (created_at);
+
+-- Step 2: Create the function to create a new partition
+CREATE OR REPLACE FUNCTION create_next_month_partition() RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+    next_month DATE;
+    partition_name TEXT;
+    start_date DATE;
+    end_date DATE;
+BEGIN
+    -- Calculate the next month and its start and end dates
+    next_month := date_trunc('month', now() + interval '1 month');
+    start_date := next_month;
+    end_date := next_month + interval '1 month' - interval '1 second';
+    
+    -- Generate the partition table name
+    partition_name := 'my_table_' || to_char(next_month, 'YYYYMM');
+    
+    -- Execute the SQL to create the new partition
+    EXECUTE format('
+        CREATE TABLE %I PARTITION OF my_table
+        FOR VALUES FROM (%L) TO (%L)
+    ', partition_name, start_date, end_date);
+    
+    RAISE NOTICE 'Partition % created for date range % to %', partition_name, start_date, end_date;
+END;
+$$;
+
+-- Step 3: Schedule the function to run monthly using pg_cron
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+SELECT cron.schedule(
+    'Create Monthly Partition',   -- job name
+    '0 0 1 * *',                  -- cron timing (midnight on the first of every month)
+    'CALL create_next_month_partition()'  -- function to call
+);
+
+
+

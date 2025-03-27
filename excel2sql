@@ -1,0 +1,66 @@
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.*;
+import java.util.*;
+
+public class App {
+    public static void main(String[] args) throws Exception {
+        String excelFilePath = "your_file.xlsx";
+        String tableName = "your_table_name";
+        List<String> selectedColumns = Arrays.asList("id", "name", "city");
+
+        FileInputStream fis = new FileInputStream(excelFilePath);
+        Workbook workbook = new XSSFWorkbook(fis);
+        Sheet sheet = workbook.getSheetAt(0);
+
+        Row headerRow = sheet.getRow(0);
+        Map<String, Integer> colIndexMap = new HashMap<>();
+        for (Cell cell : headerRow) {
+            colIndexMap.put(cell.getStringCellValue(), cell.getColumnIndex());
+        }
+
+        for (int rowNum = 1; rowNum <= sheet.getLastRowNum(); rowNum++) {
+            Row row = sheet.getRow(rowNum);
+            if (row == null) continue;
+
+            List<String> values = new ArrayList<>();
+            for (String colName : selectedColumns) {
+                int colIndex = colIndexMap.getOrDefault(colName, -1);
+                if (colIndex == -1) {
+                    values.add("NULL");
+                    continue;
+                }
+
+                Cell cell = row.getCell(colIndex);
+                if (cell == null) {
+                    values.add("NULL");
+                } else {
+                    switch (cell.getCellType()) {
+                        case STRING:
+                            String val = cell.getStringCellValue().replace("'", "''");
+                            values.add("'" + val + "'");
+                            break;
+                        case NUMERIC:
+                            values.add(String.valueOf((int) cell.getNumericCellValue())); // Convert to int if needed
+                            break;
+                        case BOOLEAN:
+                            values.add(cell.getBooleanCellValue() ? "TRUE" : "FALSE");
+                            break;
+                        default:
+                            values.add("NULL");
+                    }
+                }
+            }
+
+            String sql = String.format("INSERT INTO %s (%s) VALUES (%s);",
+                    tableName,
+                    String.join(", ", selectedColumns),
+                    String.join(", ", values));
+            System.out.println(sql);
+        }
+
+        workbook.close();
+        fis.close();
+    }
+}

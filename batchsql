@@ -1,0 +1,23 @@
+DO $$ 
+DECLARE
+    batch_size INT := 1000;
+    updated_count INT;
+BEGIN
+    LOOP
+        WITH updated_rows AS (
+            UPDATE table2
+            SET column1 = t1.column1,
+                column2 = t1.column2
+            FROM table1 t1
+            WHERE table2.id = t1.id
+            RETURNING table2.id
+        )
+        SELECT COUNT(*) INTO updated_count FROM updated_rows;
+
+        RAISE NOTICE 'Updated % records', updated_count;
+
+        COMMIT;
+
+        EXIT WHEN updated_count = 0;
+    END LOOP;
+END $$;

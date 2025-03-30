@@ -64,3 +64,8 @@ public class App {
         fis.close();
     }
 }
+
+"INSERT INTO table_name (" & TEXTJOIN(", ", TRUE, $A$1:$C$1) & ") VALUES (" &
+IF(A2="", "NULL", "'" & A2 & "'") & ", " &
+IF(B2="", "NULL", "'" & B2 & "'") & ", " &
+IF(OR(C2="", UPPER(C2)="NULL"), "NULL", "'" & C2 & "'") & ");"
